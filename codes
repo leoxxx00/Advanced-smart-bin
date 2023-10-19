@@ -1,0 +1,171 @@
+///////////////////////////////DISPLAY/////////////////////////////////
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(A1,A0,10,11,12,13);
+//////////////////////////////SERVOCONTROL///////////////////////////////////////
+#include <Servo.h>   //servo library
+Servo servo;     
+int trigPin = 5;    
+int echoPin = 6;   
+int servoPin = 7;
+int led= 10;
+long duration, dist, average;   
+long aver[3];   //array for average
+bool lidOpen = false; // flag to keep track of lid status
+unsigned long lastSensorReadTime = 0; // to keep track of last time sensor was read
+////////////////////////////////LEDS////////////////////////////////////
+int distanceThreshold = 0;
+int cm = 0;
+int inches = 0;
+
+long readUltrasonicDistance(int triggerPin, int echoPin)
+{
+pinMode(triggerPin, OUTPUT); // Clear the trigger
+digitalWrite(triggerPin, LOW);
+delayMicroseconds(2);
+// Sets the trigger pin to HIGH state for 10 microseconds
+digitalWrite(triggerPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(triggerPin, LOW);
+pinMode(echoPin, INPUT);
+// Reads the echo pin, and returns the sound wave travel time in microseconds
+return pulseIn(echoPin, HIGH);
+}
+
+///////////////////////////////SERVOCONTROL///////////////////////////////////
+void setup() {       
+    Serial.begin(9600);
+    pinMode(A2, OUTPUT);   
+    pinMode(A2, HIGH);
+lcd.begin(16,2);
+lcd.clear();
+lcd.print(">>TRASH_LEVEL<<<");
+    servo.attach(servoPin);  
+    pinMode(trigPin, OUTPUT);  
+    pinMode(echoPin, INPUT);  
+    servo.write(0);         //close cap on power on
+    delay(1000);
+    servo.detach(); 
+} 
+
+void measure() {  
+ digitalWrite(10,HIGH);
+digitalWrite(trigPin, LOW);
+delayMicroseconds(5);
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(15);
+digitalWrite(trigPin, LOW);
+pinMode(echoPin, INPUT);
+duration = pulseIn(echoPin, HIGH);
+dist = (duration/2) / 29.1;    //obtain distance
+
+////////////////////////////////LEDS////////////////////////////////////
+pinMode(2, OUTPUT);
+pinMode(2, HIGH);
+pinMode(3, OUTPUT);
+pinMode(3, HIGH);
+pinMode(4, OUTPUT);
+pinMode(4, HIGH);
+pinMode(A2, OUTPUT);      
+pinMode(A2, HIGH);
+}
+//////////////////////////////////SERVOCONTROL//////////////////////////////////
+void loop() { 
+  for (int i=0;i<=2;i++) {   //average distance
+    measure();               
+   aver[i]=dist;            
+    delay(10);              //delay between measurements
+  }
+ dist=(aver[0]+aver[1]+aver[2])/3;    
+
+if ( dist<40 ) {
+   //Change distance as per your need
+   if (!lidOpen) {
+      servo.attach(servoPin);
+      delay(500);
+      servo.write(0);  
+      delay(500);       
+      servo.write(150);    
+      delay(500);
+      servo.detach();
+      delay(1000);
+      lidOpen = true;
+      lastSensorReadTime = millis(); // store time lid was opened
+      digitalWrite(2, HIGH);
+      delay(50);
+      digitalWrite(3, HIGH);
+      delay(50);
+      digitalWrite(4, HIGH);
+      delay(50);
+      digitalWrite(A2, HIGH);
+      delay(50);   
+    }
+    {
+        ////////////////////////////////LEDS////////////////////////////////////
+        // set threshold distance to activate LEDs
+        distanceThreshold = 30;
+        // measure the ping time in cm
+        cm = 0.01723 * readUltrasonicDistance(8, 9);
+
+        // convert to inches by dividing by 2.54
+        inches = (cm / 2.54);
+        Serial.print(cm);
+        Serial.print("cm, ");
+        Serial.print(inches);
+        Serial.println("in");
+
+        if (cm <= distanceThreshold && cm > distanceThreshold - 12) {
+        lcd.setCursor(0,1);
+        lcd.print(">>>>>Empty<<<<<<");
+        digitalWrite(2, HIGH);
+        digitalWrite(3, LOW);
+        digitalWrite(4, LOW);
+        }
+        if (cm <= distanceThreshold - 12 && cm > distanceThreshold - 22) {
+        lcd.setCursor(0,1);
+        lcd.print(">>>>50%Full<<<<<");
+        digitalWrite(2, HIGH);
+        digitalWrite(3, HIGH);
+        digitalWrite(4, LOW);
+        }
+        if (cm <= distanceThreshold - 22 && cm > distanceThreshold - 27) {
+        lcd.setCursor(0,1);
+        lcd.print(">>>100%Full<<<<<");
+        digitalWrite(2, HIGH);
+        digitalWrite(3, HIGH);
+        digitalWrite(4, HIGH);
+        }
+        if (cm <= distanceThreshold - 27) {
+        lcd.setCursor(0,1);
+        lcd.print(">>>100%Full<<<<<");
+        digitalWrite(2, HIGH);
+        digitalWrite(3, HIGH);
+        digitalWrite(4, HIGH);
+        }
+      }
+  } else {
+    if (lidOpen && millis() - lastSensorReadTime > 1) {
+      servo.attach(servoPin);
+      delay(1000);
+      servo.write(0);
+      delay(1000);
+      servo.detach();
+      lidOpen = false;
+      digitalWrite(2, LOW);
+      delay(100);
+      digitalWrite(3, LOW);
+      delay(100);
+      digitalWrite(4, LOW);
+      delay(100);
+      digitalWrite(A2, LOW);
+      delay(100);
+    }
+  }
+  
+Serial.print(dist);
+
+delay(1000); // Wait for 100 millisecond(s)
+///////////////////////////////DISPLAY//////////////////////////////////
+
+}
+///////////////////////////////E.N.D///////////////////////////////////
+
