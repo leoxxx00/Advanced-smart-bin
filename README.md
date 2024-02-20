@@ -1,2 +1,3 @@
 # Advanced-smart-bin
 smart bin with power saver option
+plz use tinker card to construct a physical project and cappy paste my code ...
